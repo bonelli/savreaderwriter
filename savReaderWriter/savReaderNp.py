@@ -81,7 +81,7 @@ class SavReaderNp(SavReader):
         suffix to write uncompressed files"""
 
     def __init__(self, savFileName, recodeSysmisTo=np.nan, rawMode=False, 
-                 ioUtf8=False, ioLocale=None, ignoreTitles=False):
+                 ioUtf8=False, ioLocale=None, ignoreTitles=False, noNumpyRead=False):
         super(SavReaderNp, self).__init__(savFileName, 
            ioUtf8=ioUtf8, ioLocale=ioLocale)
 
@@ -91,6 +91,7 @@ class SavReaderNp(SavReader):
         self.ioUtf8 = ioUtf8
         self.ioLocale = ioLocale
         self.ignoreTitles = ignoreTitles
+        self.noNumpyRead = noNumpyRead
 
         self.caseBuffer = self.getCaseBuffer()
         self.unpack = self.getStruct(self.varTypes, self.varNames).unpack_from 
@@ -99,7 +100,7 @@ class SavReaderNp(SavReader):
         self.do_convert_datetimes = True
         self.nrows, self.ncols = self.shape
 
-        if self._is_uncompressed:
+        if self._is_uncompressed and not self.noNumpyRead:
             self.sav = open(self.savFileName, "rb")
             self.__iter__ = self._uncompressed_iter
             self.to_ndarray = self._uncompressed_to_ndarray
@@ -394,11 +395,14 @@ class SavReaderNp(SavReader):
         """
         if not self.datetimevars:
             return self.trunc_dtype
-        formats = ["datetime64[us]" if name in self.datetimevars else 
-                   fmt for (title, name), fmt in self.trunc_dtype.descr]
+
         if( self.ignoreTitles ):
+            formats = ["datetime64[us]" if name in self.datetimevars else 
+                       fmt for name, fmt in self.trunc_dtype.descr]        
             obj = dict(names=self.uvarNames, formats=formats)
         else:
+            formats = ["datetime64[us]" if name in self.datetimevars else 
+                       fmt for (title, name), fmt in self.trunc_dtype.descr]        
             obj = dict(names=self.uvarNames, formats=formats, titles=self._titles)
         return np.dtype(obj)
 
@@ -535,7 +539,7 @@ class SavReaderNp(SavReader):
                 array[row] = record
             #array.flush()
         else:
-            if self._is_uncompressed:
+            if self._is_uncompressed and not self.noNumpyRead:
                 array = self._uncompressed_to_array(as_ndarray=False)
             else: 
                 array = np.fromiter(self, self.trunc_dtype, self.nrows)
