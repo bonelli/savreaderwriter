@@ -81,7 +81,7 @@ class SavReaderNp(SavReader):
         suffix to write uncompressed files"""
 
     def __init__(self, savFileName, recodeSysmisTo=np.nan, rawMode=False, 
-                 ioUtf8=False, ioLocale=None):
+                 ioUtf8=False, ioLocale=None, ignoreTitles=False):
         super(SavReaderNp, self).__init__(savFileName, 
            ioUtf8=ioUtf8, ioLocale=ioLocale)
 
@@ -90,6 +90,7 @@ class SavReaderNp(SavReader):
         self.rawMode = rawMode
         self.ioUtf8 = ioUtf8
         self.ioLocale = ioLocale
+        self.ignoreTitles = ignoreTitles
 
         self.caseBuffer = self.getCaseBuffer()
         self.unpack = self.getStruct(self.varTypes, self.varNames).unpack_from 
@@ -321,7 +322,10 @@ class SavReaderNp(SavReader):
         byteorder = u"<" if self.byteorder == "little" else u">"
         formats = [u"a%d" % fmt8(t) if t else u"%sd" % 
                    byteorder for t in varTypes]
-        obj = dict(names=self.uvarNames, formats=formats, titles=self._titles)
+        if( self.ignoreTitles ):
+            obj = dict(names=self.uvarNames, formats=formats)
+        else:
+            obj = dict(names=self.uvarNames, formats=formats, titles=self._titles)
         return np.dtype(obj)
 
     @memoized_property
@@ -372,7 +376,10 @@ class SavReaderNp(SavReader):
         formats = [u'a%s' % widths[i] if self.uvarTypes[v] else u"f8" if 
                    v in self.datetimevars else get_dtype(widths[i]) for 
                    i, v in enumerate(self.uvarNames)]
-        obj = dict(names=self.uvarNames, formats=formats, titles=self._titles)
+        if( self.ignoreTitles ):
+            obj = dict(names=self.uvarNames, formats=formats)
+        else:
+            obj = dict(names=self.uvarNames, formats=formats, titles=self._titles)
         return np.dtype(obj)
 
     @memoized_property
@@ -389,7 +396,10 @@ class SavReaderNp(SavReader):
             return self.trunc_dtype
         formats = ["datetime64[us]" if name in self.datetimevars else 
                    fmt for (title, name), fmt in self.trunc_dtype.descr]
-        obj = dict(names=self.uvarNames, formats=formats, titles=self._titles)
+        if( self.ignoreTitles ):
+            obj = dict(names=self.uvarNames, formats=formats)
+        else:
+            obj = dict(names=self.uvarNames, formats=formats, titles=self._titles)
         return np.dtype(obj)
 
     @memoize
